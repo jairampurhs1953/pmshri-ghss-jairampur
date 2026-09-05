@@ -1,1 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <title>PM SHRI GHSS Jairampur — Admin</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+      color: #222;
+    }
+
+    header {
+      background: #183b56;
+      color: white;
+      padding: 18px 25px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 21px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 6px;
+      padding: 10px 16px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .logout {
+      background: #fff;
+      color: #183b56;
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 30px auto;
+      padding: 0 20px;
+    }
+
+    .login,
+    .panel {
+      background: white;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 3px 15px rgba(0,0,0,.08);
+      margin-bottom: 25px;
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0 15px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 15px;
+    }
+
+    textarea {
+      min-height: 110px;
+      resize: vertical;
+    }
+
+    .primary {
+      background: #183b56;
+      color: white;
+    }
+
+    .danger {
+      background: #c62828;
+      color: white;
+    }
+
+    .success {
+      background: #2e7d32;
+      color: white;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .item {
+      border: 1px solid #ddd;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 10px 0;
+      background: #fafafa;
+    }
+
+    .item img {
+      max-width: 220px;
+      max-height: 140px;
+      object-fit: cover;
+      border-radius: 6px;
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    .item button {
+      margin-right: 5px;
+    }
+
+    #message {
+      padding: 10px;
+      margin-bottom: 15px;
+      border-radius: 6px;
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <h1>PM SHRI GHSS Jairampur — Admin Panel</h1>
+  <button id="logoutBtn" class="logout hidden">Logout</button>
+</header>
+
+<main>
+
+  <!-- LOGIN -->
+  <section id="loginSection" class="login">
+
+    <h2>Administrator Login</h2>
+
+    <input
+      type="email"
+      id="email"
+      placeholder="Administrator email"
+    >
+
+    <input
+      type="password"
+      id="password"
+      placeholder="Password"
+    >
+
+    <button id="loginBtn" class="primary">
+      Login
+    </button>
+
+  </section>
+
+  <!-- ADMIN DASHBOARD -->
+  <section id="dashboard" class="hidden">
+
+    <div id="message"></div>
+
+    <!-- NOTICE -->
+    <div class="panel">
+
+      <h2>📢 Manage Notices</h2>
+
+      <input id="noticeTitle" placeholder="Notice title">
+
+      <textarea
+        id="noticeContent"
+        placeholder="Notice details"
+      ></textarea>
+
+      <input
+        type="date"
+        id="noticeDate"
+      >
+
+      <button id="addNoticeBtn" class="success">
+        Add Notice
+      </button>
+
+      <div id="noticeList"></div>
+
+    </div>
+
+
+    <!-- EVENTS -->
+    <div class="panel">
+
+      <h2>📅 Manage Events</h2>
+
+      <input id="eventTitle" placeholder="Event title">
+
+      <textarea
+        id="eventDescription"
+        placeholder="Event description"
+      ></textarea>
+
+      <input
+        type="date"
+        id="eventDate"
+      >
+
+      <button id="addEventBtn" class="success">
+        Add Event
+      </button>
+
+      <div id="eventList"></div>
+
+    </div>
+
+
+    <!-- PHOTOS -->
+    <div class="panel">
+
+      <h2>📷 School Gallery</h2>
+
+      <input
+        type="text"
+        id="photoTitle"
+        placeholder="Photo title"
+      >
+
+      <input
+        type="file"
+        id="photoFile"
+        accept="image/*"
+      >
+
+      <button id="uploadPhotoBtn" class="success">
+        Upload Photo
+      </button>
+
+      <div id="photoList"></div>
+
+    </div>
+
+  </section>
+
+</main>
+
+
+<script type="module">
+
+import {
+  initializeApp
+} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  onAuthStateChanged,
+  signOut
+} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs,
+  deleteDoc,
+  doc,
+  serverTimestamp,
+  query,
+  orderBy
+} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+
+import {
+  getStorage,
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject
+} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-storage.js";
+
+
+/* =====================================================
+   YOUR FIREBASE CONFIG
+   ===================================================== */
+
+const firebaseConfig = {
+
+  apiKey: "YOUR_API_KEY",
+
+  authDomain:
+    "YOUR_PROJECT.firebaseapp.com",
+
+  projectId:
+    "YOUR_PROJECT_ID",
+
+  storageBucket:
+    "YOUR_STORAGE_BUCKET",
+
+  messagingSenderId:
+    "YOUR_MESSAGING_SENDER_ID",
+
+  appId:
+    "YOUR_APP_ID"
+};
+
+
+/* =====================================================
+   INITIALIZE FIREBASE
+   ===================================================== */
+
+const app = initializeApp(firebaseConfig);
+
+const auth = getAuth(app);
+
+const db = getFirestore(app);
+
+const storage = getStorage(app);
+
+
+/* =====================================================
+   ELEMENTS
+   ===================================================== */
+
+const loginSection =
+  document.getElementById("loginSection");
+
+const dashboard =
+  document.getElementById("dashboard");
+
+const logoutBtn =
+  document.getElementById("logoutBtn");
+
+const message =
+  document.getElementById("message");
+
+
+/* =====================================================
+   MESSAGE
+   ===================================================== */
+
+function showMessage(text) {
+
+  message.textContent = text;
+
+  message.style.display = "block";
+
+  setTimeout(() => {
+    message.style.display = "none";
+  }, 4000);
+}
+
+
+/* =====================================================
+   LOGIN
+   ===================================================== */
+
+document
+  .getElementById("loginBtn")
+  .addEventListener("click", async () => {
+
+    const email =
+      document.getElementById("email").value.trim();
+
+    const password =
+      document.getElementById("password").value;
+
+    if (!email || !password) {
+      showMessage("Please enter email and password.");
+      return;
+    }
+
+    try {
+
+      await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+
+      showMessage("Login successful.");
+
+    } catch (error) {
+
+      console.error(error);
+
+      showMessage(
+        "Login failed. Please check your email and password."
+      );
+    }
+
+  });
+
+
+/* =====================================================
+   AUTH STATE
+   ===================================================== */
+
+onAuthStateChanged(auth, async (user) => {
+
+  if (user) {
+
+    loginSection.classList.add("hidden");
+
+    dashboard.classList.remove("hidden");
+
+    logoutBtn.classList.remove("hidden");
+
+    await loadNotices();
+    await loadEvents();
+    await loadPhotos();
+
+  } else {
+
+    loginSection.classList.remove("hidden");
+
+    dashboard.classList.add("hidden");
+
+    logoutBtn.classList.add("hidden");
+  }
+
+});
+
+
+/* =====================================================
+   LOGOUT
+   ===================================================== */
+
+logoutBtn.addEventListener("click", async () => {
+
+  await signOut(auth);
+
+});
+
+
+/* =====================================================
+   ADD NOTICE
+   ===================================================== */
+
+document
+  .getElementById("addNoticeBtn")
+  .addEventListener("click", async () => {
+
+    const title =
+      document.getElementById("noticeTitle").value.trim();
+
+    const content =
+      document.getElementById("noticeContent").value.trim();
+
+    const date =
+      document.getElementById("noticeDate").value;
+
+    if (!title || !content) {
+
+      showMessage("Please enter notice title and details.");
+
+      return;
+    }
+
+    try {
+
+      await addDoc(
+        collection(db, "notices"),
+        {
+          title,
+          content,
+          date,
+          createdAt: serverTimestamp()
+        }
+      );
+
+      document.getElementById("noticeTitle").value = "";
+
+      document.getElementById("noticeContent").value = "";
+
+      document.getElementById("noticeDate").value = "";
+
+      showMessage("Notice added successfully.");
+
+      loadNotices();
+
+    } catch (error) {
+
+      console.error(error);
+
+      showMessage("Unable to add notice.");
+
+    }
+
+  });
+
+
+/* =====================================================
+   LOAD NOTICES
+   ===================================================== */
+
+async function loadNotices() {
+
+  const list =
+    document.getElementById("noticeList");
+
+  list.innerHTML = "<p>Loading notices...</p>";
+
+  try {
+
+    const q =
+      query(
+        collection(db, "notices"),
+        orderBy("createdAt", "desc")
+      );
+
+    const snapshot =
+      await getDocs(q);
+
+    list.innerHTML = "";
+
+    snapshot.forEach((item) => {
+
+      const data = item.data();
+
+      const div =
+        document.createElement("div");
+
+      div.className = "item";
+
+      div.innerHTML = `
+        <strong>${escapeHtml(data.title || "")}</strong>
+        <p>${escapeHtml(data.content || "")}</p>
+        <small>${escapeHtml(data.date || "")}</small>
+        <br><br>
+        <button
+          class="danger"
+          data-id="${item.id}">
+          Delete
+        </button>
+      `;
+
+      div
+        .querySelector("button")
+        .addEventListener("click", () =>
+          deleteNotice(item.id)
+        );
+
+      list.appendChild(div);
+
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+    list.innerHTML =
+      "<p>Unable to load notices.</p>";
+  }
+}
+
+
+/* =====================================================
+   DELETE NOTICE
+   ===================================================== */
+
+async function deleteNotice(id) {
+
+  if (!confirm("Delete this notice?")) return;
+
+  try {
+
+    await deleteDoc(
+      doc(db, "notices", id)
+    );
+
+    showMessage("Notice deleted.");
+
+    loadNotices();
+
+  } catch (error) {
+
+    console.error(error);
+
+    showMessage("Unable to delete notice.");
+  }
+
+}
+
+
+/* =====================================================
+   ADD EVENT
+   ===================================================== */
+
+document
+  .getElementById("addEventBtn")
+  .addEventListener("click", async () => {
+
+    const title =
+      document.getElementById("eventTitle").value.trim();
+
+    const description =
+      document.getElementById("eventDescription").value.trim();
+
+    const date =
+      document.getElementById("eventDate").value;
+
+    if (!title) {
+
+      showMessage("Please enter event title.");
+
+      return;
+    }
+
+    try {
+
+      await addDoc(
+        collection(db, "events"),
+        {
+          title,
+          description,
+          date,
+          createdAt: serverTimestamp()
+        }
+      );
+
+      document.getElementById("eventTitle").value = "";
+
+      document.getElementById("eventDescription").value = "";
+
+      document.getElementById("eventDate").value = "";
+
+      showMessage("Event added successfully.");
+
+      loadEvents();
+
+    } catch (error) {
+
+      console.error(error);
+
+      showMessage("Unable to add event.");
+    }
+
+  });
+
+
+/* =====================================================
+   LOAD EVENTS
+   ===================================================== */
+
+async function loadEvents() {
+
+  const list =
+    document.getElementById("eventList");
+
+  list.innerHTML = "<p>Loading events...</p>";
+
+  try {
+
+    const q =
+      query(
+        collection(db, "events"),
+        orderBy("createdAt", "desc")
+      );
+
+    const snapshot =
+      await getDocs(q);
+
+    list.innerHTML = "";
+
+    snapshot.forEach((item) => {
+
+      const data = item.data();
+
+      const div =
+        document.createElement("div");
+
+      div.className = "item";
+
+      div.innerHTML = `
+        <strong>${escapeHtml(data.title || "")}</strong>
+        <p>${escapeHtml(data.description || "")}</p>
+        <small>${escapeHtml(data.date || "")}</small>
+        <br><br>
+
+        <button class="danger">
+          Delete
+        </button>
+      `;
+
+      div
+        .querySelector("button")
+        .addEventListener("click", () =>
+          deleteEvent(item.id)
+        );
+
+      list.appendChild(div);
+
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+    list.innerHTML =
+      "<p>Unable to load events.</p>";
+  }
+}
+
+
+/* =====================================================
+   DELETE EVENT
+   ===================================================== */
+
+async function deleteEvent(id) {
+
+  if (!confirm("Delete this event?")) return;
+
+  try {
+
+    await deleteDoc(
+      doc(db, "events", id)
+    );
+
+    showMessage("Event deleted.");
+
+    loadEvents();
+
+  } catch (error) {
+
+    console.error(error);
+
+    showMessage("Unable to delete event.");
+  }
+
+}
+
+
+/* =====================================================
+   UPLOAD PHOTO
+   ===================================================== */
+
+document
+  .getElementById("uploadPhotoBtn")
+  .addEventListener("click", async () => {
+
+    const title =
+      document.getElementById("photoTitle").value.trim();
+
+    const file =
+      document.getElementById("photoFile").files[0];
+
+    if (!file) {
+
+      showMessage("Please select a photograph.");
+
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+
+      showMessage("Please select an image file.");
+
+      return;
+    }
+
+    try {
+
+      showMessage("Uploading photograph...");
+
+      const safeName =
+        file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+
+      const filePath =
+        `school-photos/${Date.now()}-${safeName}`;
+
+      const storageRef =
+        ref(storage, filePath);
+
+      await uploadBytes(storageRef, file);
+
+      const imageUrl =
+        await getDownloadURL(storageRef);
+
+      await addDoc(
+        collection(db, "photos"),
+        {
+          title,
+          imageUrl,
+          storagePath: filePath,
+          createdAt: serverTimestamp()
+        }
+      );
+
+      document.getElementById("photoTitle").value = "";
+
+      document.getElementById("photoFile").value = "";
+
+      showMessage("Photo uploaded successfully.");
+
+      loadPhotos();
+
+    } catch (error) {
+
+      console.error(error);
+
+      showMessage(
+        "Photo upload failed: " + error.message
+      );
+    }
+
+  });
+
+
+/* =====================================================
+   LOAD PHOTOS
+   ===================================================== */
+
+async function loadPhotos() {
+
+  const list =
+    document.getElementById("photoList");
+
+  list.innerHTML = "<p>Loading photographs...</p>";
+
+  try {
+
+    const q =
+      query(
+        collection(db, "photos"),
+        orderBy("createdAt", "desc")
+      );
+
+    const snapshot =
+      await getDocs(q);
+
+    list.innerHTML = "";
+
+    snapshot.forEach((item) => {
+
+      const data = item.data();
+
+      const div =
+        document.createElement("div");
+
+      div.className = "item";
+
+      div.innerHTML = `
+        <img
+          src="${data.imageUrl}"
+          alt="${escapeHtml(data.title || "School photograph")}">
+
+        <strong>
+          ${escapeHtml(data.title || "School photograph")}
+        </strong>
+
+        <br><br>
+
+        <button class="danger">
+          Delete
+        </button>
+      `;
+
+      div
+        .querySelector("button")
+        .addEventListener("click", () =>
+          deletePhoto(
+            item.id,
+            data.storagePath
+          )
+        );
+
+      list.appendChild(div);
+
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+    list.innerHTML =
+      "<p>Unable to load photographs.</p>";
+  }
+}
+
+
+/* =====================================================
+   DELETE PHOTO
+   ===================================================== */
+
+async function deletePhoto(id, storagePath) {
+
+  if (!confirm("Delete this photograph?")) return;
+
+  try {
+
+    if (storagePath) {
+
+      const imageRef =
+        ref(storage, storagePath);
+
+      await deleteObject(imageRef);
+    }
+
+    await deleteDoc(
+      doc(db, "photos", id)
+    );
+
+    showMessage("Photograph deleted.");
+
+    loadPhotos();
+
+  } catch (error) {
+
+    console.error(error);
+
+    showMessage("Unable to delete photograph.");
+  }
+
+}
+
+
+/* =====================================================
+   BASIC HTML ESCAPING
+   ===================================================== */
+
+function escapeHtml(value) {
+
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+</script>
+
+</body>
+</html>
